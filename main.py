@@ -3,13 +3,12 @@ import time
 import serial
 
 # Pins Configuration
-TRIG = 1  # Pin for Ultrasonic TRIG
-ECHO = 24  # Pin for Ultrasonic ECHO
-RED_LED = 16  # Pin for Red LED
-BUTTON = 18  # Pin for Button
-BUZZER = 25  # Pin for Buzzer
+TRIG = 23
+ECHO = 24
+RED_LED = 16
+BUZZER = 25
 
-# Arduino Serial
+# Initialize Serial Communication
 arduino = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
 arduino.flush()
 
@@ -18,7 +17,6 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(TRIG, GPIO.OUT)
 GPIO.setup(ECHO, GPIO.IN)
 GPIO.setup(RED_LED, GPIO.OUT)
-GPIO.setup(BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(BUZZER, GPIO.OUT)
 
 def read_distance():
@@ -36,30 +34,22 @@ def read_distance():
     distance = pulse_duration * 17150
     return round(distance, 2)
 
-def show_timer(duration):
-    for remaining in range(duration, -1, -1):
-        print(f"Timer: {remaining}s")  # Debug print (can be replaced with additional hardware display if needed)
-        time.sleep(1)
-    GPIO.output(BUZZER, True)
-    time.sleep(1)
-    GPIO.output(BUZZER, False)
-
 try:
     print("System Ready!")
-    time.sleep(2)
-
     while True:
-        # Read data from Arduino
+        # Read Data from Arduino
         if arduino.in_waiting > 0:
             data = arduino.readline().decode('utf-8').strip()
-            print(f"Arduino: {data}")  # Print the data from Arduino
+            print(f"Arduino: {data}")
 
-            if "Access Granted" in data:
-                print("Authentication successful! System is active.")
-                GPIO.output(RED_LED, True)
-            elif "Access Denied" in data:
-                print("Authentication failed! System is locked.")
-                GPIO.output(RED_LED, False)
+            if "Access Denied" in data:
+                GPIO.output(BUZZER, True)
+                time.sleep(1)
+                GPIO.output(BUZZER, False)
+
+            elif "Access Granted" in data:
+                print("System Active")
+
             elif "Temp:" in data and "Humidity:" in data:
                 # Parse temperature and humidity
                 parts = data.split(',')
@@ -67,27 +57,23 @@ try:
                 humidity = parts[1].split(':')[1].strip()
                 print(f"Temperature: {temp}°C, Humidity: {humidity}%")
 
-        # Read Distance
+        # Ultrasonic Sensor to Control Red LED
         distance = read_distance()
-        print(f"Distance: {distance} cm")  # Debug print
-
-        # Control Red LED based on distance
         if distance < 10:
-            GPIO.output(RED_LED, True)  # Turn on Red LED
+            GPIO.output(RED_LED, True)
         else:
-            GPIO.output(RED_LED, False)  # Turn off Red LED
+            GPIO.output(RED_LED, False)
 
-        # Button Press for Timer
-        if GPIO.input(BUTTON) == GPIO.LOW:
-            print("Timer Started!")
-            show_timer(10)  # 10-second timer
-            print("Timer Ended!")
+        # Example of Sending Motor Commands
+        if distance < 10:
+            arduino.write(b"Motor:ON\n")  # Start motor if object is close
+        else:
+            arduino.write(b"Motor:OFF\n")  # Stop motor if no object is close
 
         time.sleep(0.5)
 
 except KeyboardInterrupt:
     print("Exiting program...")
-
 finally:
     GPIO.cleanup()
     arduino.close()
