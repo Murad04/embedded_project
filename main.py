@@ -1,30 +1,24 @@
 import RPi.GPIO as GPIO
 import time
-import serial
-from adafruit_character_lcd.character_lcd import Character_LCD_Mono
+from adafruit_character_lcd.character_lcd_i2c import Character_LCD_I2C
+import board
+import busio
 
 # Pins Configuration
-TRIG = 23
-ECHO = 24
-RED_LED = 16
-BUZZER = 25
+TRIG = 16
+ECHO = 18
+RED_LED = 40
+BUZZER = 12
 
-# LCD Configuration
+# I2C LCD Configuration
 lcd_columns = 16
 lcd_rows = 2
-lcd_rs = 6
-lcd_en = 5
-lcd_d4 = 22
-lcd_d5 = 27
-lcd_d6 = 17
-lcd_d7 = 4
-lcd_backlight = 12
 
-lcd = Character_LCD_Mono(lcd_rs, lcd_en, lcd_d4, lcd_d5, lcd_d6, lcd_d7, lcd_columns, lcd_rows, lcd_backlight)
+# Create I2C interface
+i2c = busio.I2C(board.SCL, board.SDA)
 
-# Initialize Serial Communication
-arduino = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
-arduino.flush()
+# Initialize the I2C LCD
+lcd = Character_LCD_I2C(i2c, lcd_columns, lcd_rows)
 
 # Initialize GPIO
 GPIO.setmode(GPIO.BCM)
@@ -55,44 +49,24 @@ try:
     time.sleep(2)
 
     while True:
-        # Read Data from Arduino
-        if arduino.in_waiting > 0:
-            data = arduino.readline().decode('utf-8').strip()
-            print(f"Arduino: {data}")
-
-            if "Access Denied" in data:
-                GPIO.output(BUZZER, True)
-                lcd.clear()
-                lcd.message = "Access Denied\nTry Again"
-                time.sleep(1)
-                GPIO.output(BUZZER, False)
-
-            elif "Access Granted" in data:
-                lcd.clear()
-                lcd.message = "Access Granted\nSystem Active"
-                print("System Active")
-
-            elif "Temp:" in data and "Humidity:" in data:
-                # Parse temperature and humidity
-                parts = data.split(',')
-                temp = parts[0].split(':')[1].strip()
-                humidity = parts[1].split(':')[1].strip()
-                print(f"Temperature: {temp}°C, Humidity: {humidity}%")
-                lcd.clear()
-                lcd.message = f"Temp: {temp}C\nHumidity: {humidity}%"
-
         # Ultrasonic Sensor to Control Red LED
         distance = read_distance()
+        print(f"Distance: {distance} cm")  # Debug print
+        
         if distance < 10:
             GPIO.output(RED_LED, True)
+            lcd.clear()
+            lcd.message = f"Object Close\nDist: {distance} cm"
         else:
             GPIO.output(RED_LED, False)
+            lcd.clear()
+            lcd.message = "Safe Distance\n"
 
-        # Example of Sending Motor Commands
-        if distance < 10:
-            arduino.write(b"Motor:ON\n")  # Start motor if object is close
-        else:
-            arduino.write(b"Motor:OFF\n")  # Stop motor if no object is close
+        # Trigger buzzer if an object is too close
+        if distance < 5:
+            GPIO.output(BUZZER, True)
+            time.sleep(0.5)
+            GPIO.output(BUZZER, False)
 
         time.sleep(0.5)
 
@@ -103,4 +77,3 @@ except KeyboardInterrupt:
 
 finally:
     GPIO.cleanup()
-    arduino.close()
