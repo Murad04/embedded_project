@@ -4,13 +4,11 @@ import serial
 import adafruit_matrixkeypad
 
 # Pins Configuration
-TRIG = 1 #23 
-ECHO = 24
-RED_LED = 16
-YELLOW_LED = 20
-GREEN_LED = 21
-BUTTON = 18
-BUZZER = 25
+TRIG = 1  # Pin for Ultrasonic TRIG
+ECHO = 24  # Pin for Ultrasonic ECHO
+RED_LED = 16  # Pin for Red LED
+BUTTON = 18  # Pin for Button
+BUZZER = 25  # Pin for Buzzer
 
 # Arduino Serial
 arduino = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
@@ -21,8 +19,6 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(TRIG, GPIO.OUT)
 GPIO.setup(ECHO, GPIO.IN)
 GPIO.setup(RED_LED, GPIO.OUT)
-GPIO.setup(YELLOW_LED, GPIO.OUT)
-GPIO.setup(GREEN_LED, GPIO.OUT)
 GPIO.setup(BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(BUZZER, GPIO.OUT)
 
@@ -106,10 +102,11 @@ try:
             distance = read_distance()
             print(f"Distance: {distance} cm")  # Debug print
 
-            # Control LEDs
-            GPIO.output(RED_LED, distance < 10)
-            GPIO.output(YELLOW_LED, 10 <= distance <= 30)
-            GPIO.output(GREEN_LED, distance > 30)
+            # Control Red LED based on distance
+            if distance < 10:
+                GPIO.output(RED_LED, True)  # Turn on Red LED
+            else:
+                GPIO.output(RED_LED, False)  # Turn off Red LED
 
             # Button Press for Timer
             if GPIO.input(BUTTON) == GPIO.LOW:
