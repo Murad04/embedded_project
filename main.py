@@ -18,7 +18,7 @@ lcd_rows = 2
 i2c = busio.I2C(board.SCL, board.SDA)
 
 # Initialize the I2C LCD
-lcd = Character_LCD_I2C(i2c, lcd_columns, lcd_rows)
+lcd = Character_LCD_I2C(i2c, lcd_columns, lcd_rows,address=0x27)
 
 # Initialize GPIO
 GPIO.setmode(GPIO.BCM)
